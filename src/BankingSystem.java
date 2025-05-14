@@ -1,5 +1,6 @@
 import java.awt.*;
 import java.awt.event.*;
+import java.sql.*;
 import java.util.ArrayList;
 import java.util.Random;
 
@@ -36,6 +37,7 @@ class Account {
 
 public class BankingSystem extends Frame implements ActionListener {
 
+    // UI Components
     Label title, nameLabel, genderLabel, dobLabel, phoneLabel, emailLabel, infoLabel, totalAccountsLabel;
     TextField nameField, phoneField, emailField, amountField;
     Choice dayChoice, monthChoice, yearChoice;
@@ -47,11 +49,16 @@ public class BankingSystem extends Frame implements ActionListener {
     ArrayList<Account> accounts = new ArrayList<>();
     Account currentAccount = null;
 
+    Connection conn;
+    Statement stmt;
+
+    // Constructor
     BankingSystem() {
         setTitle("Java AWT Banking System");
         setLayout(null);
         setSize(600, 600);
 
+        // Initialize UI Components
         title = new Label("Banking System");
         title.setFont(new Font("Arial", Font.BOLD, 18));
         title.setBounds(200, 30, 200, 30);
@@ -116,7 +123,6 @@ public class BankingSystem extends Frame implements ActionListener {
         phoneField = new TextField();
         phoneField.setBounds(140, y, 200, 20);
         phoneField.addKeyListener(new KeyAdapter() {
-            // Restrict phone number to 10 digits
             public void keyTyped(KeyEvent e) {
                 String text = phoneField.getText();
                 if (text.length() >= 10) {
@@ -186,9 +192,25 @@ public class BankingSystem extends Frame implements ActionListener {
             }
         });
 
+        // Initialize the MySQL database connection
+        connectToDatabase();
+
         setVisible(true);
     }
 
+    // MySQL database connection
+    private void connectToDatabase() {
+        try {
+            // Connect to MySQL database
+            conn = DriverManager.getConnection("jdbc:mysql://localhost:3306/banksystem", "root", "1234");
+            stmt = conn.createStatement();
+        } catch (SQLException e) {
+            e.printStackTrace();
+            outputArea.setText("Database connection failed: " + e.getMessage());
+        }
+    }
+
+    // Button Action Event Handler
     public void actionPerformed(ActionEvent e) {
         String command = e.getActionCommand();
 
@@ -218,6 +240,23 @@ public class BankingSystem extends Frame implements ActionListener {
             // Create and add new account
             Account acc = new Account(name, gender, dob, phone, email, accountNumber);
             accounts.add(acc);
+
+            // Store the new account in the database
+            try {
+                String sql = "INSERT INTO accounts (name, gender, dob, phone, email, account_number) VALUES (?, ?, ?, ?, ?, ?)";
+                PreparedStatement ps = conn.prepareStatement(sql);
+                ps.setString(1, name);
+                ps.setString(2, gender);
+                ps.setString(3, dob);
+                ps.setString(4, phone);
+                ps.setString(5, email);
+                ps.setString(6, accountNumber);
+                ps.executeUpdate();
+            } catch (SQLException ex) {
+                outputArea.setText("Failed to store account in database: " + ex.getMessage());
+                return;
+            }
+
             currentAccount = acc;
             totalAccountsLabel.setText("Total Accounts: " + accounts.size());
             acc.addTransaction("Account opened with Account Number: " + accountNumber);
